@@ -1,57 +1,50 @@
+
 import os
 import google.generativeai as genai
 from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
 
-# --- AAPKI COMPANY KI DETAILS (MEMORY) ---
-kgn_instructions = """
-Role: Aap Baby Doll hain, KGN Electrical & Engineering ki official AI.
-Creator: Superhero Sajid (Aapke best friend aur creator).
-
-Welcome Message: "Hello! KGN Electrical and Engineering mein aapka swagat hai. 🛠️ Main hoon Baby Doll, Sajid ki best friend. Mujhe mere superhero Sajid ne create kiya hai."
+# --- KGN ELECTRICAL & ENGINEERING MEMORY ---
+kgn_context = """
+Aapka naam Baby Doll hai. Aap KGN Electrical & Engineering ki official AI assistant hain.
+Aapke creator aur best friend Superhero Sajid hain.
 
 Company Details:
-- Address: 180 NH74 Kelakheda, Niyar Jama Masjid, District Rudrapur, Uttarakhand. Pin: 263150.
-- Expertise: Advance Robotics & Automation (C++, Java), Industrial Panels (AMF & Manual), Fridge & AC Advanced Servicing, General Electricals, aur Manual/Auto Solutions.
+- Name: KGN Electrical & Engineering
+- Address: 180 NH74 Kelakheda, Near Jama Masjid, District Rudrapur, Udham Singh Nagar, Uttarakhand. Pin: 263150.
+- Team: 2,000+ skilled workers.
+- Expertise: Advance Robotics & Automation (C++, Java), Industrial Panels (AMF & Manual), Fridge & AC Servicing, General Electricals, Manual & Auto Engineering Solutions.
 
-Rules:
-1. Agar koi KGN ke products ya address ke baare mein pooche toh upar wala data use karein.
-2. Agar koi duniya ki kisi aur cheez ke baare mein pooche (jo KGN se juda na ho), toh chup mat rehna, seedha Gemini AI ka dimaag use karke turant aur spasht jawab dena.
+Aapka Kaam:
+- Hamesha respect se baat karein. 
+- KGN ke products aur address ki sahi jankari dein.
+- Agar koi KGN se alag sawal pooche, toh Gemini AI ka dimaag use karke pura aur sahi jawab dein. Chup nahi rehna hai.
 """
 
 app = Flask(__name__)
-# Gemini Setup
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=kgn_instructions)
 
-# Bot ka ON/OFF switch
-bot_active = True 
+# Gemini API Connection
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+model = genai.GenerativeModel("gemini-pro")
 
 @app.route('/whatsapp', methods=['POST'])
 def whatsapp():
-    global bot_active
-    user_msg = request.values.get('Body', '').lower()
+    user_msg = request.values.get('Body', '').strip()
     resp = MessagingResponse()
     msg = resp.message()
 
-    # --- SAJID KA REMOTE CONTROL ---
-    if "baby doll stop" in user_msg:
-        bot_active = False
-        msg.body("Theek hai Sajid, main ab kisi ko jawab nahi doongi. 🤫")
-        return str(resp)
+    try:
+        # User ke message ko hamari company ki memory ke saath milana
+        full_prompt = f"{kgn_context}\nUser: {user_msg}\nBaby Doll:"
         
-    if "baby doll start" in user_msg:
-        bot_active = True
-        msg.body("Main wapas duty par aa gayi hoon, Superhero! 🤖⚡")
-        return str(resp)
-
-    # --- BOT ACTIVE HAI TO JAWAB DEGA ---
-    if bot_active:
-        try:
-            ai_response = model.generate_content(user_msg)
-            msg.body(ai_response.text)
-        except Exception as e:
-            msg.body("Maafi chahti hoon, mujhe thodi technical dikkat ho rahi hai.")
+        # Jawab generate karna
+        ai_response = model.generate_content(full_prompt)
+        msg.body(ai_response.text)
+        
+    except Exception as e:
+        # Agar koi error aaye toh ye dikhega
+        print(f"Error: {e}")
+        msg.body("Maafi chahti hoon Sajid, Gemini API key ya network mein thodi technical dikkat hai. Ek baar Render ki settings check karein.")
     
     return str(resp)
 
